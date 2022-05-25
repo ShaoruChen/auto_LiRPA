@@ -413,9 +413,16 @@ class BoundedModule(nn.Module):
 
     def _convert_nodes(self, model, global_input):
         global_input_cpu = self._to(global_input, 'cpu')
+        
+        # model.eval()
+        # model.to('cpu')
+        # nodesOP, nodesIn, nodesOut, template = parse_module(model, global_input_cpu)
+        # model.train()
+
         model.train()
         model.to('cpu')
         nodesOP, nodesIn, nodesOut, template = parse_module(model, global_input_cpu)
+
         model.to(self.device)
         for i in range(0, len(nodesIn)):
             if nodesIn[i].param is not None:
@@ -787,6 +794,9 @@ class BoundedModule(nn.Module):
                 aux_reference_bounds[name] = (lb.detach().clone(), ub.detach().clone())
         if aux_reference_bounds is None:
             aux_reference_bounds = {}
+
+        # Fixme: double check if this line is needed
+        torch.set_grad_enabled(True)
 
         for i in range(iteration):
             intermediate_constr = None
