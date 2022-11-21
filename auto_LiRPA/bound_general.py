@@ -414,14 +414,14 @@ class BoundedModule(nn.Module):
     def _convert_nodes(self, model, global_input):
         global_input_cpu = self._to(global_input, 'cpu')
         
-        # model.eval()
-        # model.to('cpu')
-        # nodesOP, nodesIn, nodesOut, template = parse_module(model, global_input_cpu)
-        # model.train()
-
-        model.train()
+        model.eval()
         model.to('cpu')
         nodesOP, nodesIn, nodesOut, template = parse_module(model, global_input_cpu)
+        model.train()
+
+        # model.train()
+        # model.to('cpu')
+        # nodesOP, nodesIn, nodesOut, template = parse_module(model, global_input_cpu)
 
         model.to(self.device)
         for i in range(0, len(nodesIn)):
@@ -1719,11 +1719,6 @@ class BoundedModule(nn.Module):
                     _l = self._modules[l_pre]
                     add_bound(_l, lA=A[i][0], uA=A[i][1])
 
-        if lb.ndim >= 2:
-            lb = lb.transpose(0, 1)
-        if ub.ndim >= 2:
-            ub = ub.transpose(0, 1)
-
         if return_A and needed_A_dict and node.name in needed_A_dict:
             root_A_record = {}
             for i in range(len(root)):
@@ -1732,10 +1727,19 @@ class BoundedModule(nn.Module):
                     root_A_record.update({root[i].name: {
                         "lA": root[i].lA.transpose(0, 1).detach() if root[i].lA is not None else None,
                         "uA": root[i].uA.transpose(0, 1).detach() if root[i].uA is not None else None,
+                        # MyChange: add bias terms for the root nodes
+                        "lbias": lb.transpose(0, 1).detach() if lb.ndim > 1 else None,
+                        # When not used, lb or ub is tensor(0).
+                        "ubias": ub.transpose(0, 1).detach() if ub.ndim > 1 else None,
                     }})
             root_A_record.update(A_record)  # merge to existing A_record
             A_dict.update({node.name: root_A_record})
 
+        if lb.ndim >= 2:
+            lb = lb.transpose(0, 1)
+        if ub.ndim >= 2:
+            ub = ub.transpose(0, 1)
+            
         for i in range(len(root)):
             if root[i].lA is None and root[i].uA is None: continue
             if average_A and isinstance(root[i], BoundParams):
